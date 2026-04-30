@@ -36,16 +36,56 @@ import com.example.android_local_network_music_player.ui.component.MusicListItem
 
 // ─── アーティストグループ分け ───────────────────────────────────────────────────
 
+private fun isKanaChar(c: Char): Boolean {
+    val b = Character.UnicodeBlock.of(c)
+    return b == Character.UnicodeBlock.HIRAGANA ||
+        b == Character.UnicodeBlock.KATAKANA ||
+        b == Character.UnicodeBlock.KATAKANA_PHONETIC_EXTENSIONS
+}
+
+private fun isKanjiChar(c: Char): Boolean {
+    val b = Character.UnicodeBlock.of(c)
+    return b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+        b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
+        b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||
+        b == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
+}
+
 /**
- * アーティスト名からグループキー ("A"～"Z" / "あ" / "1") を返す。
- * "The "/"the " で始まる名前は先頭4文字を除いた後の文字で判定する。
+ * ひらがな/カタカナ 1文字から五十音行グループキーを返す。
+ * カタカナ (U+30A1–U+30F6) はひらがなに正規化してから判定。
  */
-private fun artistGroupKey(name: String): String {
+private fun kanaGroupKey(c: Char): String {
+    val h = if (c in 'ァ'..'ヶ') c - 0x60 else c
+    return when {
+        h in 'ぁ'..'お' -> "あ"
+        h in 'か'..'ご' -> "か"
+        h in 'さ'..'ぞ' -> "さ"
+        h in 'た'..'ど' -> "た"
+        h in 'な'..'の' -> "な"
+        h in 'は'..'ぽ' -> "は"
+        h in 'ま'..'も' -> "ま"
+        h in 'ゃ'..'よ' -> "や"
+        h in 'ら'..'ろ' -> "ら"
+        else                    -> "わ"
+    }
+}
+
+/**
+ * アーティスト名からグループキーを返す。
+ * "The "/"the " で始まる名前は先頭4文字を除いた後の文字で判定する。
+ * - A–Z : アルファベットグループ
+ * - ひらがな/カタカナ : 五十音行 (あ/か/さ/た/な/は/ま/や/ら/わ)
+ * - 漢字 : yomi があれば読み仮名先頭で五十音グループ、なければ "漢"
+ * - その他 : "1"
+ */
+private fun artistGroupKey(name: String, yomi: String?): String {
     val effective = if (name.startsWith("the ", ignoreCase = true)) name.drop(4).trimStart() else name
     val first = effective.firstOrNull() ?: return "1"
     return when {
         first in 'A'..'Z' || first in 'a'..'z' -> first.uppercaseChar().toString()
-        isJapaneseChar(first) -> "あ"
+        isKanaChar(first) -> kanaGroupKey(first)
+        isKanjiChar(first) -> yomi?.firstOrNull()?.let { kanaGroupKey(it) } ?: "漢"
         else -> "1"
     }
 }
@@ -59,21 +99,13 @@ private fun artistSortKey(name: String): String =
     (if (name.startsWith("the ", ignoreCase = true)) name.drop(4).trimStart() else name)
         .lowercase()
 
-private fun isJapaneseChar(c: Char): Boolean {
-    val block = Character.UnicodeBlock.of(c)
-    return block == Character.UnicodeBlock.HIRAGANA ||
-        block == Character.UnicodeBlock.KATAKANA ||
-        block == Character.UnicodeBlock.KATAKANA_PHONETIC_EXTENSIONS ||
-        block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
-        block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
-        block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||
-        block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
-}
+private val KANA_GROUP_ORDER = listOf("あ", "か", "さ", "た", "な", "は", "ま", "や", "ら", "わ")
 
-/** グループの表示順: A–Z → あ → 1 */
+/** グループの表示順: A–Z → あ行～わ行 → 漢 → 1 */
 private fun groupSortRank(label: String): Int = when {
     label.length == 1 && label[0] in 'A'..'Z' -> label[0].code // 65–90
-    label == "あ" -> 200
+    label in KANA_GROUP_ORDER -> 200 + KANA_GROUP_ORDER.indexOf(label) // 200–209
+    label == "漢" -> 210
     else -> 300 // "1"
 }
 
@@ -199,10 +231,10 @@ private fun GroupedArtistList(
 
     val groups: List<Pair<String, List<FolderEntry>>> = remember(folders) {
         folders
-            .groupBy { artistGroupKey(it.name) }
+            .groupBy { artistGroupKey(it.name, it.yomi) }
             .entries
             .sortedBy { groupSortRank(it.key) }
-            .map { (label, artists) -> label to artists.sortedBy { artistSortKey(it.name) } }
+            .map { (label, artists) -> label to artists.sortedBy { it.yomi ?: artistSortKey(it.name) } }
     }
 
     val headerFocusRequesters: Map<String, FocusRequester> = remember(groups) {
@@ -219,13 +251,15 @@ private fun GroupedArtistList(
     // 外部から指定されたアーティストへフォーカス: 対象グループを展開する
     LaunchedEffect(pendingFocusItem) {
         val target = pendingFocusItem ?: return@LaunchedEffect
-        expandedGroup = artistGroupKey(target)
+        val yomi = folders.find { it.name == target }?.yomi
+        expandedGroup = artistGroupKey(target, yomi)
     }
 
     // グループが展開された後、対象アーティストまでスクロール（フォーカスはアイテム側が行う）
     LaunchedEffect(pendingFocusItem, expandedGroup) {
         val target = pendingFocusItem ?: return@LaunchedEffect
-        val targetGroupLabel = artistGroupKey(target)
+        val yomi = folders.find { it.name == target }?.yomi
+        val targetGroupLabel = artistGroupKey(target, yomi)
         if (expandedGroup != targetGroupLabel) return@LaunchedEffect
         val groupsBefore = groups.indexOfFirst { (label, _) -> label == targetGroupLabel }
         if (groupsBefore < 0) return@LaunchedEffect

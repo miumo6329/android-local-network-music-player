@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 data class FolderEntry(
     val name: String,
     val trackCount: Int,
-    val folderCount: Int
+    val folderCount: Int,
+    val yomi: String? = null
 )
