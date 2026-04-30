@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +35,7 @@ fun ListPane(
     onRetry: () -> Unit,
     onPlayTrack: (tracks: List<Track>, startIndex: Int) -> Unit,
     listFocusRequester: FocusRequester? = null,
+    listState: LazyListState = rememberLazyListState(),
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -53,7 +56,8 @@ fun ListPane(
                     depth = nav.depth,
                     onEnterFolder = onEnterFolder,
                     onPlayTrack = onPlayTrack,
-                    listFocusRequester = listFocusRequester
+                    listFocusRequester = listFocusRequester,
+                    listState = listState
                 )
             }
         }
@@ -81,12 +85,13 @@ private fun FolderContent(
     depth: Int,
     onEnterFolder: (String) -> Unit,
     onPlayTrack: (tracks: List<Track>, startIndex: Int) -> Unit,
-    listFocusRequester: FocusRequester?
+    listFocusRequester: FocusRequester?,
+    listState: LazyListState
 ) {
     val listModifier = Modifier.fillMaxSize().let { base ->
         if (listFocusRequester != null) base.focusRequester(listFocusRequester) else base
     }
-    LazyColumn(modifier = listModifier) {
+    LazyColumn(state = listState, modifier = listModifier) {
         items(current.folders, key = { "f:${it.name}" }) { folder ->
             FolderItem(folder = folder, depth = depth, onEnterFolder = onEnterFolder)
         }

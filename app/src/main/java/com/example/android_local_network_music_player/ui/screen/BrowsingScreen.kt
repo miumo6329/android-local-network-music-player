@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
@@ -53,9 +54,21 @@ fun BrowsingScreen(
     var showExitDialog by remember { mutableStateOf(false) }
     val leftFocusRequester = remember { FocusRequester() }
     val rightFocusRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState()
+    var shouldFocusList by remember { mutableStateOf(false) }
+
+    LaunchedEffect(nav.current) {
+        if (shouldFocusList && nav.current != null) {
+            shouldFocusList = false
+            listState.scrollToItem(0)
+            leftFocusRequester.requestFocus()
+        }
+    }
 
     BackHandler {
-        if (!onGoBack()) {
+        if (onGoBack()) {
+            shouldFocusList = true
+        } else {
             showExitDialog = true
         }
     }
@@ -78,10 +91,14 @@ fun BrowsingScreen(
         ) {
             ListPane(
                 nav = nav,
-                onEnterFolder = onEnterFolder,
+                onEnterFolder = { folderName ->
+                    shouldFocusList = true
+                    onEnterFolder(folderName)
+                },
                 onRetry = onRetry,
                 onPlayTrack = onPlayTrack,
-                listFocusRequester = leftFocusRequester
+                listFocusRequester = leftFocusRequester,
+                listState = listState
             )
         }
 
@@ -89,16 +106,6 @@ fun BrowsingScreen(
             modifier = Modifier
                 .weight(0.62f)
                 .fillMaxSize()
-                .onKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown &&
-                        event.key.nativeKeyCode == AndroidKeyEvent.KEYCODE_DPAD_LEFT
-                    ) {
-                        leftFocusRequester.requestFocus()
-                        true
-                    } else {
-                        false
-                    }
-                }
         ) {
             PlaybackPane(
                 playbackState = playbackState,
@@ -106,7 +113,8 @@ fun BrowsingScreen(
                 onNextTrack = onNextTrack,
                 onPrevTrack = onPrevTrack,
                 onSeekTo = onSeekTo,
-                firstControlFocusRequester = rightFocusRequester
+                firstControlFocusRequester = rightFocusRequester,
+                onNavigateToList = { leftFocusRequester.requestFocus() }
             )
         }
     }

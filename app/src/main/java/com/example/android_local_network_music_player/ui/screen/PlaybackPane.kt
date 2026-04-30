@@ -52,6 +52,7 @@ fun PlaybackPane(
     onPrevTrack: () -> Unit,
     onSeekTo: (Long) -> Unit,
     firstControlFocusRequester: FocusRequester? = null,
+    onNavigateToList: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -118,11 +119,21 @@ fun PlaybackPane(
         val playBtnModifier = Modifier.let { base ->
             if (firstControlFocusRequester != null) base.focusRequester(firstControlFocusRequester) else base
         }
+        val prevBtnModifier = if (onNavigateToList != null) {
+            Modifier.onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown &&
+                    event.key.nativeKeyCode == AndroidKeyEvent.KEYCODE_DPAD_LEFT
+                ) {
+                    onNavigateToList()
+                    true
+                } else false
+            }
+        } else Modifier
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(onClick = onPrevTrack, enabled = track != null) {
+            Button(onClick = onPrevTrack, enabled = track != null, modifier = prevBtnModifier) {
                 Text("|◀")
             }
             Button(
