@@ -47,15 +47,23 @@ private fun AppRoot(
     onExit: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
+
     when (val s = state) {
         is AppUiState.Connecting -> ConnectingScreen(s)
         is AppUiState.StartupError -> StartupErrorScreen(s, onRetry = viewModel::retry)
         is AppUiState.Browsing -> BrowsingScreen(
             nav = s.nav,
+            playbackState = playbackState,
             onEnterFolder = viewModel::enterFolder,
             onGoBack = viewModel::goBack,
             onRetry = viewModel::retry,
-            onExit = onExit
+            onExit = onExit,
+            onPlayTrack = viewModel::playAlbum,
+            onTogglePlay = viewModel::togglePlay,
+            onNextTrack = viewModel::nextTrack,
+            onPrevTrack = viewModel::previousTrack,
+            onSeekTo = viewModel::seekTo
         )
     }
 }

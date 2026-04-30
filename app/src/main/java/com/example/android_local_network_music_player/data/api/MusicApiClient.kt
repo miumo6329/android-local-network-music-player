@@ -49,7 +49,7 @@ object MusicApiClient {
      * `id` は `Track.id` (base_dir からの相対パス、`/` 区切り)。
      */
     fun albumArtUrl(trackId: String): String {
-        val encoded = URLEncoder.encode(trackId, Charsets.UTF_8)
+        val encoded = URLEncoder.encode(trackId, "UTF-8")
         return "${baseUrl}albumart?path=$encoded"
     }
 }

@@ -31,26 +31,26 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.example.android_local_network_music_player.data.api.dto.Track
 import com.example.android_local_network_music_player.ui.NavigationState
+import com.example.android_local_network_music_player.ui.PlaybackUiState
 
-/**
- * フェーズ3のメイン画面。
- * - 左ペイン (38%): アーティスト/アルバム/トラック一覧
- * - 右ペイン (62%): 再生コントロール (フェーズ4で実装)
- * - D-pad 右 → 右ペインへ、D-pad 左 → 左ペインへ (onKeyEvent: 子が未消費のときだけ発火)
- * - 戻るキー: 1階層戻る。ルートで押したら終了確認ダイアログ
- */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun BrowsingScreen(
     nav: NavigationState,
+    playbackState: PlaybackUiState,
     onEnterFolder: (String) -> Unit,
     onGoBack: () -> Boolean,
     onRetry: () -> Unit,
-    onExit: () -> Unit
+    onExit: () -> Unit,
+    onPlayTrack: (tracks: List<Track>, startIndex: Int) -> Unit,
+    onTogglePlay: () -> Unit,
+    onNextTrack: () -> Unit,
+    onPrevTrack: () -> Unit,
+    onSeekTo: (Long) -> Unit
 ) {
     var showExitDialog by remember { mutableStateOf(false) }
-    // 各ペインの代表フォーカスノードに付ける FocusRequester
     val leftFocusRequester = remember { FocusRequester() }
     val rightFocusRequester = remember { FocusRequester() }
 
@@ -61,9 +61,6 @@ fun BrowsingScreen(
     }
 
     Row(modifier = Modifier.fillMaxSize()) {
-        // 左ペイン: リスト
-        // onKeyEvent は子が消費しなかったイベントだけ受け取る (ボトムアップ)
-        // → 縦リスト中の DPAD_RIGHT は ListItem が消費しないため右ペインへ転送できる
         Box(
             modifier = Modifier
                 .weight(0.38f)
@@ -83,11 +80,11 @@ fun BrowsingScreen(
                 nav = nav,
                 onEnterFolder = onEnterFolder,
                 onRetry = onRetry,
+                onPlayTrack = onPlayTrack,
                 listFocusRequester = leftFocusRequester
             )
         }
 
-        // 右ペイン: 再生
         Box(
             modifier = Modifier
                 .weight(0.62f)
@@ -103,7 +100,14 @@ fun BrowsingScreen(
                     }
                 }
         ) {
-            PlaybackPane(firstControlFocusRequester = rightFocusRequester)
+            PlaybackPane(
+                playbackState = playbackState,
+                onTogglePlay = onTogglePlay,
+                onNextTrack = onNextTrack,
+                onPrevTrack = onPrevTrack,
+                onSeekTo = onSeekTo,
+                firstControlFocusRequester = rightFocusRequester
+            )
         }
     }
 

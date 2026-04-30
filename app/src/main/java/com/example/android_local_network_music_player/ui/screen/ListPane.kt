@@ -6,14 +6,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.Button
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
@@ -30,7 +31,7 @@ fun ListPane(
     nav: NavigationState,
     onEnterFolder: (String) -> Unit,
     onRetry: () -> Unit,
-    /** BrowsingScreen から渡す FocusRequester。TvLazyColumn に付けてペイン切り替え時の焦点先にする。 */
+    onPlayTrack: (tracks: List<Track>, startIndex: Int) -> Unit,
     listFocusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier
 ) {
@@ -51,6 +52,7 @@ fun ListPane(
                     current = nav.current,
                     depth = nav.depth,
                     onEnterFolder = onEnterFolder,
+                    onPlayTrack = onPlayTrack,
                     listFocusRequester = listFocusRequester
                 )
             }
@@ -78,6 +80,7 @@ private fun FolderContent(
     current: FoldersResponse,
     depth: Int,
     onEnterFolder: (String) -> Unit,
+    onPlayTrack: (tracks: List<Track>, startIndex: Int) -> Unit,
     listFocusRequester: FocusRequester?
 ) {
     val listModifier = Modifier.fillMaxSize().let { base ->
@@ -87,8 +90,8 @@ private fun FolderContent(
         items(current.folders, key = { "f:${it.name}" }) { folder ->
             FolderItem(folder = folder, depth = depth, onEnterFolder = onEnterFolder)
         }
-        items(current.tracks, key = { "t:${it.id}" }) { track ->
-            TrackItem(track = track)
+        itemsIndexed(current.tracks, key = { _, t -> "t:${t.id}" }) { index, track ->
+            TrackItem(track = track, onClick = { onPlayTrack(current.tracks, index) })
         }
     }
 }
@@ -111,14 +114,14 @@ private fun FolderItem(
 }
 
 @Composable
-private fun TrackItem(track: Track) {
+private fun TrackItem(track: Track, onClick: () -> Unit) {
     val tn = track.trackNumber?.let { "%02d. ".format(it) }.orEmpty()
     val title = track.title ?: track.filename
     val artistAlbum = listOfNotNull(track.artist, track.album).joinToString(" — ")
     MusicListItem(
         title = "$tn$title",
         subtitle = artistAlbum.ifEmpty { null },
-        onClick = { /* フェーズ4: 再生キューセット & 再生開始 */ }
+        onClick = onClick
     )
 }
 
