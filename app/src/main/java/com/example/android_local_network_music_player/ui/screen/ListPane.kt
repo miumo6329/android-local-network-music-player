@@ -88,6 +88,8 @@ fun ListPane(
     onPlayTrack: (tracks: List<Track>, startIndex: Int) -> Unit,
     listFocusRequester: FocusRequester? = null,
     listState: LazyListState = rememberLazyListState(),
+    pendingFocusItem: String? = null,
+    onPendingFocusDone: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -109,7 +111,9 @@ fun ListPane(
                     onEnterFolder = onEnterFolder,
                     onPlayTrack = onPlayTrack,
                     listFocusRequester = listFocusRequester,
-                    listState = listState
+                    listState = listState,
+                    pendingFocusItem = pendingFocusItem,
+                    onPendingFocusDone = onPendingFocusDone
                 )
             }
         }
@@ -138,22 +142,37 @@ private fun FolderContent(
     onEnterFolder: (String) -> Unit,
     onPlayTrack: (tracks: List<Track>, startIndex: Int) -> Unit,
     listFocusRequester: FocusRequester?,
-    listState: LazyListState
+    listState: LazyListState,
+    pendingFocusItem: String? = null,
+    onPendingFocusDone: () -> Unit = {}
 ) {
     if (depth == 1 && current.folders.isNotEmpty()) {
         GroupedArtistList(
             folders = current.folders,
             onEnterFolder = onEnterFolder,
             listFocusRequester = listFocusRequester,
-            listState = listState
+            listState = listState,
+            pendingFocusItem = pendingFocusItem,
+            onPendingFocusDone = onPendingFocusDone
         )
     } else {
+        LaunchedEffect(pendingFocusItem) {
+            val target = pendingFocusItem ?: return@LaunchedEffect
+            val index = current.folders.indexOfFirst { it.name == target }
+            if (index >= 0) listState.scrollToItem(index)
+        }
         val listModifier = Modifier.fillMaxSize().let { base ->
             if (listFocusRequester != null) base.focusRequester(listFocusRequester) else base
         }
         LazyColumn(state = listState, modifier = listModifier) {
             items(current.folders, key = { "f:${it.name}" }) { folder ->
-                FolderItem(folder = folder, depth = depth, onEnterFolder = onEnterFolder)
+                FolderItem(
+                    folder = folder,
+                    depth = depth,
+                    onEnterFolder = onEnterFolder,
+                    pendingFocusName = pendingFocusItem,
+                    onPendingFocusDone = onPendingFocusDone
+                )
             }
             itemsIndexed(current.tracks, key = { _, t -> "t:${t.id}" }) { index, track ->
                 TrackItem(track = track, onClick = { onPlayTrack(current.tracks, index) })
@@ -169,7 +188,9 @@ private fun GroupedArtistList(
     folders: List<FolderEntry>,
     onEnterFolder: (String) -> Unit,
     listFocusRequester: FocusRequester?,
-    listState: LazyListState
+    listState: LazyListState,
+    pendingFocusItem: String? = null,
+    onPendingFocusDone: () -> Unit = {}
 ) {
     // シングル展開モデル: 同時に開けるグループは1つのみ
     var expandedGroup by remember { mutableStateOf<String?>(null) }
@@ -190,8 +211,27 @@ private fun GroupedArtistList(
 
     // グループ展開中に戻るボタンを押すと折り畳み、ヘッダーにフォーカスを戻す
     BackHandler(enabled = expandedGroup != null) {
+        if (pendingFocusItem != null) onPendingFocusDone()
         pendingFocusLabel = expandedGroup
         expandedGroup = null
+    }
+
+    // 外部から指定されたアーティストへフォーカス: 対象グループを展開する
+    LaunchedEffect(pendingFocusItem) {
+        val target = pendingFocusItem ?: return@LaunchedEffect
+        expandedGroup = artistGroupKey(target)
+    }
+
+    // グループが展開された後、対象アーティストまでスクロール（フォーカスはアイテム側が行う）
+    LaunchedEffect(pendingFocusItem, expandedGroup) {
+        val target = pendingFocusItem ?: return@LaunchedEffect
+        val targetGroupLabel = artistGroupKey(target)
+        if (expandedGroup != targetGroupLabel) return@LaunchedEffect
+        val groupsBefore = groups.indexOfFirst { (label, _) -> label == targetGroupLabel }
+        if (groupsBefore < 0) return@LaunchedEffect
+        val artistIndexInGroup = groups[groupsBefore].second.indexOfFirst { it.name == target }
+        if (artistIndexInGroup < 0) return@LaunchedEffect
+        listState.scrollToItem(groupsBefore + 1 + artistIndexInGroup)
     }
 
     // 折り畳み後に対象ヘッダーへスクロール & フォーカス
@@ -228,10 +268,20 @@ private fun GroupedArtistList(
 
             if (isExpanded) {
                 items(artists, key = { "f:${it.name}" }) { folder ->
+                    val isFocusTarget = folder.name == pendingFocusItem
+                    val focusReq = remember { FocusRequester() }
+
+                    LaunchedEffect(isFocusTarget) {
+                        if (isFocusTarget) {
+                            focusReq.requestFocus()
+                            onPendingFocusDone()
+                        }
+                    }
+
                     MusicListItem(
                         title = folder.name,
                         subtitle = "アルバム ${folder.folderCount}  /  トラック ${folder.trackCount}",
-                        modifier = Modifier.padding(start = 24.dp),
+                        modifier = Modifier.padding(start = 24.dp).focusRequester(focusReq),
                         onClick = { onEnterFolder(folder.name) }
                     )
                 }
@@ -277,8 +327,20 @@ private fun ArtistGroupHeader(
 private fun FolderItem(
     folder: FolderEntry,
     depth: Int,
-    onEnterFolder: (String) -> Unit
+    onEnterFolder: (String) -> Unit,
+    pendingFocusName: String? = null,
+    onPendingFocusDone: () -> Unit = {}
 ) {
+    val isFocusTarget = folder.name == pendingFocusName
+    val focusReq = remember { FocusRequester() }
+
+    LaunchedEffect(isFocusTarget) {
+        if (isFocusTarget) {
+            focusReq.requestFocus()
+            onPendingFocusDone()
+        }
+    }
+
     val subtitle = when (depth) {
         1 -> "アルバム ${folder.folderCount}  /  トラック ${folder.trackCount}"
         else -> "トラック ${folder.trackCount}"
@@ -286,6 +348,7 @@ private fun FolderItem(
     MusicListItem(
         title = folder.name,
         subtitle = subtitle,
+        modifier = Modifier.focusRequester(focusReq),
         onClick = { onEnterFolder(folder.name) }
     )
 }

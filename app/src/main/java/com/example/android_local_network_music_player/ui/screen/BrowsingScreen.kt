@@ -56,6 +56,7 @@ fun BrowsingScreen(
     val rightFocusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
     var shouldFocusList by remember { mutableStateOf(false) }
+    var pendingFocusItem by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(nav.current) {
         if (shouldFocusList && nav.current != null) {
@@ -66,8 +67,9 @@ fun BrowsingScreen(
     }
 
     BackHandler {
+        val targetLabel = nav.stack.last().label
         if (onGoBack()) {
-            shouldFocusList = true
+            pendingFocusItem = targetLabel
         } else {
             showExitDialog = true
         }
@@ -92,13 +94,16 @@ fun BrowsingScreen(
             ListPane(
                 nav = nav,
                 onEnterFolder = { folderName ->
+                    pendingFocusItem = null
                     shouldFocusList = true
                     onEnterFolder(folderName)
                 },
                 onRetry = onRetry,
                 onPlayTrack = onPlayTrack,
                 listFocusRequester = leftFocusRequester,
-                listState = listState
+                listState = listState,
+                pendingFocusItem = pendingFocusItem,
+                onPendingFocusDone = { pendingFocusItem = null }
             )
         }
 
