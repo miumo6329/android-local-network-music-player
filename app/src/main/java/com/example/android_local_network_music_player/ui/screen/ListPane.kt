@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -391,10 +392,8 @@ private fun FolderItem(
 private fun TrackItem(track: Track, onClick: () -> Unit) {
     val tn = track.trackNumber?.let { "%02d. ".format(it) }.orEmpty()
     val title = track.title ?: track.filename
-    val artistAlbum = listOfNotNull(track.artist, track.album).joinToString(" — ")
     MusicListItem(
         title = "$tn$title",
-        subtitle = artistAlbum.ifEmpty { null },
         onClick = onClick
     )
 }

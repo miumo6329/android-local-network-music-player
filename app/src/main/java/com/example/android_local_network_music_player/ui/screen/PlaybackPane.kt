@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -58,7 +59,7 @@ fun PlaybackPane(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -67,8 +68,8 @@ fun PlaybackPane(
         // アートワーク
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.65f)
-                .aspectRatio(1f)
+                .fillMaxHeight(0.50f)
+                .aspectRatio(1f, matchHeightConstraintsFirst = true)
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color.DarkGray),
             contentAlignment = Alignment.Center
@@ -155,14 +156,12 @@ fun PlaybackPane(
             positionMs = playbackState.positionMs,
             durationMs = playbackState.durationMs,
             onSeekTo = onSeekTo,
-            modifier = Modifier.fillMaxWidth(0.9f)
+            modifier = Modifier.fillMaxWidth(0.7f)
         )
-
-        Spacer(Modifier.height(4.dp))
 
         // 経過時間 / 総時間
         Row(
-            modifier = Modifier.fillMaxWidth(0.9f),
+            modifier = Modifier.fillMaxWidth(0.7f),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(

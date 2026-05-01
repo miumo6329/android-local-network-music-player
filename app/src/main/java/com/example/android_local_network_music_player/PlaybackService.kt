@@ -25,6 +25,7 @@ class PlaybackService : MediaSessionService() {
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
+            .also { it.volume = 0.3f }
 
         val activityIntent = PendingIntent.getActivity(
             this, 0,
