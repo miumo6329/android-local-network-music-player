@@ -145,6 +145,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _controller?.seekTo(positionMs)
     }
 
+    fun stopPlayback() {
+        _controller?.stop()
+        _controller?.clearMediaItems()
+    }
+
     // --- ナビゲーション ---
 
     private fun runStartupSequence() {

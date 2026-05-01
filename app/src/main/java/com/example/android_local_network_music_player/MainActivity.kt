@@ -1,5 +1,6 @@
 package com.example.android_local_network_music_player
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,7 +34,15 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     shape = RectangleShape
                 ) {
-                    AppRoot(onExit = { finish() })
+                    val viewModel: MusicViewModel = viewModel()
+                    AppRoot(
+                        viewModel = viewModel,
+                        onExit = {
+                            viewModel.stopPlayback()
+                            stopService(Intent(this@MainActivity, PlaybackService::class.java))
+                            finish()
+                        }
+                    )
                 }
             }
         }
@@ -43,7 +52,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun AppRoot(
-    viewModel: MusicViewModel = viewModel(),
+    viewModel: MusicViewModel,
     onExit: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
