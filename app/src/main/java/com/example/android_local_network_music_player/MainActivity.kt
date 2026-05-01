@@ -2,6 +2,7 @@ package com.example.android_local_network_music_player
 
 import android.content.Intent
 import android.os.Bundle
+import kotlin.system.exitProcess
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
                             viewModel.stopPlayback()
                             stopService(Intent(this@MainActivity, PlaybackService::class.java))
                             finish()
+                            exitProcess(0)
                         }
                     )
                 }
